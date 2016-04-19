@@ -1,7 +1,7 @@
 #!/usr/bin/python
 import pprint
 import xml.etree.ElementTree
-from xml.sax.saxutils import escape
+from HTMLParser import HTMLParser
 from googleapiclient.discovery import build
 import common_lib
 import passage_retrieval
@@ -35,4 +35,5 @@ for link in links:
 
 top_passage = passage_retrieval.GetTopPassageFromList(keyword_query, passages)
 
-print top_passage[0]
+unescape = HTMLParser().unescape
+print unescape(top_passage[0])
