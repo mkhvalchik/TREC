@@ -120,10 +120,10 @@ def Init():
     stanford_jars = find_jars_within_path(stanford_dir)
     parser._classpath = tuple(find_jars_within_path(stanford_dir))
 
-    st = StanfordNERTagger('./stanford_libs/stanford-ner-2015-12-09/classifiers/english.all.3class.distsim.crf.ser.gz',
+    '''st = StanfordNERTagger('./stanford_libs/stanford-ner-2015-12-09/classifiers/english.all.3class.distsim.crf.ser.gz',
     './stanford_libs/stanford-ner-2015-12-09/stanford-ner.jar')
     stanford_dir = st._stanford_jar.rpartition('/')[0]
     st._stanford_jar = ':'.join(find_jars_within_path(stanford_dir))
-
+'''
     stop = stopwords.words('english')
-    return parser, st, stop
+    return parser, None, stop
