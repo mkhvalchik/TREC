@@ -28,6 +28,7 @@ len_score = 0
 passages = []
 
 for link in links:
+    print "link"
     passage, _ = passage_retrieval.GetTopPassageFromLink(keyword_query, link)
     if passage:
         passages.append(passage)
