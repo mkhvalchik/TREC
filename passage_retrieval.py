@@ -8,9 +8,11 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 
 # Returns text from the url.
 def GetTextFromLink(link):
+    if link.find(".pdf") != -1:
+        return None
     try:
         req = urllib2.Request(link, headers={ 'User-Agent': 'Mozilla/5.0' })
-        html = unicode(urllib2.urlopen(req).read(), 'utf-8')
+        html = unicode(urllib2.urlopen(req, timeout=1.5).read(), 'utf-8')
     except:
         return None
     #print html
@@ -21,7 +23,7 @@ def GetTextFromLink(link):
 # For a given text, returns allcominations of 3 nearby sentences
 def GetAllPassages(keywords, text):
     # these chracters break the string in sentences
-    sentences = re.split('[!\.\?] ', text)
+    sentences = re.split('[!\.\?\n] ', text)
     if len(sentences) < 4:
         return None
     j = 4
@@ -41,11 +43,11 @@ def GetAllPassages(keywords, text):
         if too_short:
             continue
         words = ' '.join(passage).lower()
-        if (words.count('\n\n') > 1):
+        if (words.count("  * ") > 1):
+            continue
+        if (words.count('\n\n') >= 2):
             continue
         if (words.find('###') != -1):
-            continue
-        if (words.count('**') >= 2):
             continue
         if (words.count('*') >= 10 or words.count('|') >= 10):
             continue
@@ -58,12 +60,17 @@ def GetAllPassages(keywords, text):
         # Filter out words which don't contain any of the keywords
         found = False
         for keyword in stemmed_keywords:
-            if words.find(keyword) != -1:
+            if words.find(keyword.lower()) != -1:
                 found = True
                 break
         if not found:
             continue
-        filtered_passages.append('. '.join(passage))
+        filtered_passage = '. '.join(passage)
+        filtered_passage = re.sub(r'\([^)]*\)', '', filtered_passage)
+        filtered_passage = re.sub(r'\[[^[]]*\]', '', filtered_passage)
+        filtered_passage = filtered_passage.replace("**", "")
+
+        filtered_passages.append(filtered_passage)
     return filtered_passages
 
 # Compute IDFs from the given query and list of passages.
@@ -71,15 +78,15 @@ def ComputeIDFsAndAvgl(keywords, documents):
     idfs = {}
     sum_len = 0
     search_terms = SplitKeywords(keywords)
-    stemmed_keywords = stem_tokens(search_terms)
+    stemmed_keywords = [w.lower() for w in stem_tokens(search_terms)]
     # iterate over all passages
     for doc in documents:
         sum_len += len(doc)
-        doc = common_lib.Tokenize(doc)
-        for search_term in stemmed_keywords:
+        doc = stem_tokens(common_lib.Tokenize(doc))
+        for search_term in list(set(stemmed_keywords)):
             found = False
             for d in doc:
-                if search_term == d.lower():
+                if search_term.lower() == d.lower():
                     if search_term in idfs:
                         idfs[search_term] += 1
                     else:
@@ -87,25 +94,30 @@ def ComputeIDFsAndAvgl(keywords, documents):
                     found = True
                     break
             if found:
-                break
+                continue
     idfs_return = {}
     # Computing IDF formula
     for key in idfs:
-        idfs_return[key] =  math.log((float(len(documents)) - idfs[key] + 0.5 / idfs[key] + 0.5), 2)
+        idfs_return[key] =  math.log(float(len(documents))/idfs[key], 2)
     return idfs_return, float(sum_len) / len(documents)
 
 # Compute score for a given passage and query. Avgl - average doc length.
 def ComputeBM25(keywords, idfs, passage, avgl):
     tokens = stem_tokens(common_lib.Tokenize(passage.lower()))
+    #print tokens
     score = 0
     search_terms = SplitKeywords(keywords)
     stemmed_keywords = stem_tokens(search_terms)
     for search_term in stemmed_keywords:
-        freq = tokens.count(search_term)
+        raw_freq = tokens.count(search_term.lower())
+        if (raw_freq == 0):
+            freq = 0
+        else:
+            freq = 1 + math.log(raw_freq, 2)
         idf = 0
-        if search_term in idfs:
-            idf = idfs[search_term]
-        score += float(idf) * (tokens.count(search_term) * (2 + 1)) / (freq + 2 * (1 - 0.75 + 0.75 * len(passage)/avgl))
+        if search_term.lower() in idfs:
+            idf = idfs[search_term.lower()]
+        score += float(idf) * (freq * (2 + 1)) / (freq + 2 * (1 - 0.75 + 0.75 * len(passage)/avgl))
     return score
 
 # Gets top passage from the list of passages.
@@ -115,6 +127,7 @@ def GetTopPassageFromList(keywords, passages):
     top_score = -1
     for passage in passages:
         score = ComputeBM25(keywords, idfs, passage, avgl)
+        #print str(score) + " " + passage.encode('utf-8')
         if (score >= top_score):
             top_score = score
             top_passage = passage
@@ -143,6 +156,16 @@ def SplitKeywords(keywords):
             search_term = search_term.replace("\"", "")
             out.append(search_term)
     return out
+
+# Removes synonyms from the keywords
+def RemoveSynonymsFromKeywords(keywords):
+    splitted_keywords = keywords.split(" AND ")
+    filtered_keywords = [keyword.split(" OR ")[0].replace("(", "").replace(")", "") for keyword in splitted_keywords]
+    filtered_keywords_ret = []
+    for keyword in filtered_keywords:
+        if not (keyword.lower() in ["what", "how", "why", "where", "when", "which"]):
+            filtered_keywords_ret.append(keyword)
+    return " AND ".join(filtered_keywords_ret)
 
 # Compute number of keywords in a given passage.
 def ScorePassage(keywords, passage):

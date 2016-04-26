@@ -13,27 +13,31 @@ def GetLinksForQuery(query):
     bing = PyBingSearch('3Bybyj2qcK/w5FXbBqBUjI9MajN51efC2uYldmzvvnY')
     result_list = bing.search_all(query, limit=20, format='json')
 
-    return [result.url for result in result_list][:20]
+    results = [result.url for result in result_list]
+
+    return results[:min(20, len(results))]
+    #return ['https://en.wikipedia.org/wiki/Sacramento,_California']
 
 parser, st, stop = common_lib.Init()
 
 title = sys.argv[1]
-body = sys.argv[2]
+body = sys.argv[1]
 
 keyword_query = common_lib.buildFullQuery(title, body, parser, stop)
 
 links = GetLinksForQuery(keyword_query)
+keyword_query =  passage_retrieval.RemoveSynonymsFromKeywords(keyword_query)
 
 sum_score = 0
 len_score = 0
 passages = []
 
 for link in links:
-    passage, _ = passage_retrieval.GetTopPassageFromLink(keyword_query, link)
+    passage, score = passage_retrieval.GetTopPassageFromLink(keyword_query, link)
     if passage:
         passages.append(passage)
 
 top_passage = passage_retrieval.GetTopPassageFromList(keyword_query, passages)
 
 unescape = HTMLParser().unescape
-print unescape(top_passage[0])
+print unescape(top_passage[0].encode('utf-8'))

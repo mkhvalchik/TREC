@@ -5,6 +5,7 @@ from nltk.internals import find_jars_within_path
 from nltk.corpus import stopwords
 import re
 from nltk.tag.stanford import StanfordNERTagger
+from collections import OrderedDict
 
 def buildSynset(word, pos, hyponyms=True, hypernyms=True):
     """ Input: a word from the query string and its part of speech.
@@ -17,11 +18,17 @@ def buildSynset(word, pos, hyponyms=True, hypernyms=True):
         print "not in synsets"
         return []
     # Build list of words from synsets, hyponyms and hypernyms
-    synonyms = []
+    synonyms = [word]
     for lemma in syn:
-        word = lemma.name().split(".")[0]
-        if not word in synonyms:
-            synonyms.append(word)
+        synon = lemma.lemma_names()
+        i = 0
+        for syn in synon:
+            #print word
+            if not syn in synonyms and syn.find("_") == -1 and syn[0].isupper() == word[0].isupper():
+                synonyms.append(syn)
+            i += 1
+            if i >= 2:
+                break
         if hyponyms:
             synonyms = addCategory(synonyms, lemma)
         if hypernyms:
@@ -36,16 +43,20 @@ def buildFullQuery(subject, content, parser, stop, hyponyms=False, hypernyms=Fal
         query = subject
     else:
         query = subject + " " + content
+    query = query.replace("<br>", "")
     # Regular expression that takes everything in the parentheses and removes it
     query = re.sub(r'\([^)]*\)', '', query)
     importantTags = ["JJ", "NNP", "NN", "VBN", "VB", "NNS", "CD"]
-    query.replace('!', '.')
-    query.replace('?', '.')
+    query = query.replace('!', '.')
+    query = query.replace('?', '.')
+    query = query.replace('/', ' ')
     queryseparated = query.split('. ')
     queryParts = []
 
 
     for query_part in queryseparated:
+        if len(queryParts) >= 6:
+            break
         if len(query_part) < 3:
             continue
         imp = importantWords(query_part, parser)
@@ -76,9 +87,11 @@ def buildFullQuery(subject, content, parser, stop, hyponyms=False, hypernyms=Fal
                     if(len(synset)>=3):
                         synset = synset[0:3]
                     queryParts.append("(" + " OR ".join(synset) + ")")
+                    if len(queryParts) >= 6:
+                        break
 
     # function set removes duplicates and function list converts the set into list
-    queryParts = list(set(queryParts))
+    queryParts = list(OrderedDict.fromkeys(queryParts))
     if len(queryParts) != 0:
         expansion =  " AND ".join(queryParts)
     else:
