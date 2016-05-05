@@ -133,6 +133,17 @@ def GetTopPassageFromList(keywords, passages):
             top_passage = passage
     return top_passage, top_score
 
+# Score passages from the list
+def ScorePassages(keywords, passages):
+    idfs, avgl = ComputeIDFsAndAvgl(keywords, passages)
+    top_passage = ''
+    top_score = -1
+    ret = []
+    for passage in passages:
+        score = ComputeBM25(keywords, idfs, passage, avgl)
+        ret.append([passage, score])
+    return ret
+
 # Get top passage per link
 def GetTopPassage(keywords, text):
     if not text:
