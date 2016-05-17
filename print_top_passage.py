@@ -8,6 +8,9 @@ import passage_retrieval
 import machine_learning
 from py_bing_search import PyBingSearch
 import sys
+import warnings
+
+warnings.filterwarnings("ignore")
 
 # Get top 20 search result links for a given query using Bing
 def GetLinksForQueryBing(query):
@@ -53,21 +56,18 @@ len_score = 0
 results = []
 rank = 1
 for link in links_bing:
-    passage, score = passage_retrieval.GetTopPassageFromLink(keyword_query, link)
+    passage, score = passage_retrieval.GetTopPassageFromLinkWithML(keyword_query, link)
     if passage:
         results.append([link, link in links_google, passage, 0, rank])
     rank += 1
 
 X, _ = machine_learning.ComputeAnswerFeatures(keyword_query, results)
-print X
 model = machine_learning.LoadModel("answers.model")
 
 # predicting the labels
 Y = []
 for x in X:
     Y.append(machine_learning.Predict(model, x)[0])
-
-print Y
 
 # candidate answers
 candidates = []
@@ -81,7 +81,10 @@ for y in Y:
 
 for i in range(len(Y)):
     if Y[i] == 1 or add_all:
-        candidates.append(results[i][2])
+        # X[i][0] is bing rank of passage
+        for result in results:
+            if result[4] == X[i][1]:
+                candidates.append(result[2])
 
 # Next, we selecting the top passage out of all BM25 candidates
 scored_passages = passage_retrieval.ScorePassages(keyword_query, candidates)

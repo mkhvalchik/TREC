@@ -46,13 +46,12 @@ def buildFullQuery(subject, content, parser, stop, hyponyms=False, hypernyms=Fal
     query = query.replace("<br>", "")
     # Regular expression that takes everything in the parentheses and removes it
     query = re.sub(r'\([^)]*\)', '', query)
-    importantTags = ["JJ", "NNP", "NN", "VBN", "VB", "NNS", "CD"]
+    importantTags = ["JJ", "NNP", "NN", "VBN", "VB", "VBP", "NNS", "CD"]
     query = query.replace('!', '.')
     query = query.replace('?', '.')
     query = query.replace('/', ' ')
     queryseparated = query.split('. ')
     queryParts = []
-
 
     for query_part in queryseparated:
         if len(queryParts) >= 6:
@@ -65,14 +64,15 @@ def buildFullQuery(subject, content, parser, stop, hyponyms=False, hypernyms=Fal
         # Find "important" tags and get synsets
         synsets = []
         for (word, tag) in posTags:
-            #print word, tag
-            if tag in importantTags or word == imp and not(word in stop):
+            if (tag in importantTags or word == imp) and not(word.lower() in stop):
                 t = None
                 if tag == "JJ":
                     t = wn.ADJ
                 elif tag == "NNP" or tag == "NN":
                     t = wn.NOUN
                 elif tag == "VBN":
+                    t = wn.VERB
+                elif tag == "VBP":
                     t = wn.VERB
                 elif tag == "VB":
                     t = wn.VERB
@@ -89,7 +89,6 @@ def buildFullQuery(subject, content, parser, stop, hyponyms=False, hypernyms=Fal
                     queryParts.append("(" + " OR ".join(synset) + ")")
                     if len(queryParts) >= 6:
                         break
-
     # function set removes duplicates and function list converts the set into list
     queryParts = list(OrderedDict.fromkeys(queryParts))
     if len(queryParts) != 0:

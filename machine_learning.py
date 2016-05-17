@@ -19,7 +19,6 @@ def ComputeAnswerFeatures(keyword_query, results):
         # First two features - whether a given passage was in intersection of
         # Google and Bing searches and its rank in Bing search
         new_result = [result[1], result[4]]
-        print new_result
 
         # Third feature - whether a passage was in wikipedia
         if (result[0].find("wikipedia") != -1):
@@ -43,7 +42,6 @@ def ComputeAnswerFeatures(keyword_query, results):
             continue
 
         # Sixth feature - average distance between query terms
-        print positions
         positions.sort()
         s = 0
         for i in range(1,len(positions)):
@@ -57,7 +55,7 @@ def ComputeAnswerFeatures(keyword_query, results):
         # Seventh feature - number of query terms in passage
         new_result.append(float(len(positions))/len(keywords))
 
-        # Seventh feature - BM25 rank
+        # eighth feature - BM25 rank
         index = 1
         for p in passages:
             if (p[0] == result[2]):
@@ -73,6 +71,58 @@ def ComputeAnswerFeatures(keyword_query, results):
         X.append(new_result)
     return X, Y
 
+# Computes features for the passage selection ML model
+def ComputePassageFeatures(keyword_query, results):
+    top_results = results
+    top_results.sort(key=lambda tup: tup[2], reverse=True)
+    top_results = top_results[:(len(top_results) / 5)]
+    results.sort(key=lambda tup: tup[1], reverse=True)
+    keywords = passage_retrieval.RemoveSynonymsFromKeywords(keyword_query).split(" AND ")
+
+    X = []
+    Y = []
+
+    rank = 0
+    for result in results:
+        rank += 1
+        features = []
+
+        # First feature - BM5 rank
+        features.append(rank)
+
+        positions = []
+        for keyword in passage_retrieval.stem_tokens(keywords):
+            if result[0].find(keyword) != -1:
+                positions.append(result[0].find(keyword))
+
+        if (len(positions) == 0):
+            continue
+
+        # Second feature - average distance between query terms
+        positions.sort()
+        s = 0
+        for i in range(1,len(positions)):
+            s += positions[i] - positions[i - 1]
+        if (len(positions) > 0):
+            average_distance = float(s) / len(positions)
+        else:
+            average_distance = 1000
+        features.append(average_distance)
+
+        # Third feature - number of query terms in passage
+        features.append(float(len(positions))/len(keywords))
+
+        # Fourth feature - number of words in passage
+        features.append(len(result[0].split(" ")))
+
+        label = 0
+        for top_result in top_results:
+            if result[0] == top_result[0]:
+              label = 1
+
+        X.append(features)
+        Y.append(label)
+    return X, Y
 
 def TrainModel(X, Y):
     clf = svm.SVC()

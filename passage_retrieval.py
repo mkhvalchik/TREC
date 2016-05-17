@@ -4,6 +4,7 @@ import math
 import common_lib
 import re
 import nltk, string
+import machine_learning
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 # Returns text from the url.
@@ -12,10 +13,10 @@ def GetTextFromLink(link):
         return None
     try:
         req = urllib2.Request(link, headers={ 'User-Agent': 'Mozilla/5.0' })
-        html = unicode(urllib2.urlopen(req, timeout=1.5).read(), 'utf-8')
+        html = unicode(urllib2.urlopen(req, timeout=2.5).read(), 'utf-8')
     except:
         return None
-    #print html
+    # print html
     h = html2text.HTML2Text()
     h.ignore_links = True
     return unicode(h.handle(html))
@@ -133,6 +134,53 @@ def GetTopPassageFromList(keywords, passages):
             top_passage = passage
     return top_passage, top_score
 
+# Gets top passage from the list of passages with using of ML model.
+def GetTopPassageFromLinkWithML(keywords, link):
+    text = GetTextFromLink(link)
+    if not text:
+        return None, None
+    passages = GetAllPassages(keywords, text)
+    if not passages:
+        return None, None
+    idfs, avgl = ComputeIDFsAndAvgl(keywords, passages)
+    top_passage = ''
+    top_score = -1
+    results = []
+    for passage in passages:
+        score = ComputeBM25(keywords, idfs, passage, avgl)
+        results.append([passage, score, 1.0])
+
+    results.sort(key=lambda tup: tup[1], reverse=True)
+    X, Y = machine_learning.ComputePassageFeatures(keywords, results)
+    model = machine_learning.LoadModel("passages.model")
+
+    # predicting the labels
+    Y = []
+    for x in X:
+        Y.append(machine_learning.Predict(model, x)[0])
+
+    # candidate answers
+    candidates = []
+
+    # sometimes none of the candidates is classified as 1, in this case we need to
+    # add all candidates.
+    add_all = True
+    for y in Y:
+        if y == 1:
+            add_all = False
+
+    for i in range(len(Y)):
+        if Y[i] == 1 or add_all:
+            # X[i][0] is a BM25 rank of passage
+            candidates.append(results[X[i][0] - 1])
+
+    for candidate in candidates:
+        if candidate[1] > top_score:
+            top_score = candidate[1]
+            top_passage = candidate[0]
+
+    return top_passage, top_score
+
 # Score passages from the list
 def ScorePassages(keywords, passages):
     idfs, avgl = ComputeIDFsAndAvgl(keywords, passages)
@@ -156,6 +204,16 @@ def GetTopPassage(keywords, text):
 # Get top passage per link
 def GetTopPassageFromLink(keywords, link):
     return GetTopPassage(keywords, GetTextFromLink(link))
+
+# Get list of pairs: passage and bm25 score
+def GetScoredPassages(keywords, link):
+    text = GetTextFromLink(link)
+    if not text:
+        return None
+    passages = GetAllPassages(keywords, text)
+    if not passages:
+        return None
+    return ScorePassages(keywords, passages)
 
 # Splits keyworded query into keywords
 def SplitKeywords(keywords):
