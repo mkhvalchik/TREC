@@ -6,6 +6,7 @@ import re
 import nltk, string
 import machine_learning
 from sklearn.feature_extraction.text import TfidfVectorizer
+from langdetect import detect
 
 # Returns text from the url.
 def GetTextFromLink(link):
@@ -19,6 +20,7 @@ def GetTextFromLink(link):
     # print html
     h = html2text.HTML2Text()
     h.ignore_links = True
+    h.ignore_emphasis = True
     return unicode(h.handle(html))
 
 # For a given text, returns allcominations of 3 nearby sentences
@@ -67,8 +69,6 @@ def GetAllPassages(keywords, text):
         if not found:
             continue
         filtered_passage = '. '.join(passage)
-        filtered_passage = re.sub(r'\([^)]*\)', '', filtered_passage)
-        filtered_passage = re.sub(r'\[[^[]]*\]', '', filtered_passage)
         filtered_passage = filtered_passage.replace("**", "")
 
         filtered_passages.append(filtered_passage)
@@ -132,6 +132,11 @@ def GetTopPassageFromList(keywords, passages):
         if (score >= top_score):
             top_score = score
             top_passage = passage
+    try:
+        if detect(top_passage) != 'en':
+            return None, None
+    except:
+        return None, None
     return top_passage, top_score
 
 # Gets top passage from the list of passages with using of ML model.
@@ -179,10 +184,40 @@ def GetTopPassageFromLinkWithML(keywords, link):
             top_score = candidate[1]
             top_passage = candidate[0]
 
+    if len(top_passage) <= 0:
+        return None, None
+
+    top_passage = RemoveParenthesis(top_passage)
+    try:
+        if detect(top_passage) != 'en':
+            return None, None
+    except:
+        return None, None
+
     return top_passage, top_score
+
+# removes all text between brackets.
+def RemoveParenthesis(text):
+    ret = ''
+    skip1c = 0
+    skip2c = 0
+    for i in text:
+        if i == '[':
+            skip1c += 1
+        elif i == '(':
+            skip2c += 1
+        elif i == ']' and skip1c > 0:
+            skip1c -= 1
+        elif i == ')'and skip2c > 0:
+            skip2c -= 1
+        elif skip1c == 0 and skip2c == 0:
+            ret += i
+    return ret
 
 # Score passages from the list
 def ScorePassages(keywords, passages):
+    if not passages:
+        return None
     idfs, avgl = ComputeIDFsAndAvgl(keywords, passages)
     top_passage = ''
     top_score = -1

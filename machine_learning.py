@@ -21,13 +21,13 @@ def ComputeAnswerFeatures(keyword_query, results):
         new_result = [result[1], result[4]]
 
         # Third feature - whether a passage was in wikipedia
-        if (result[0].find("wikipedia") != -1):
+        if (result[0].lower().find("wikipedia") != -1):
             new_result.append(1)
         else:
             new_result.append(0)
 
         # Fourth feature - whether a passage was in yahoo answers
-        if (result[0].find("answers.yahoo") != -1):
+        if (result[0].lower().find("answers.yahoo") != -1):
             new_result.append(1)
         else:
             new_result.append(0)
@@ -35,8 +35,9 @@ def ComputeAnswerFeatures(keyword_query, results):
         # Fifth feature - whether a passage was in yahoo answers
         positions = []
         for keyword in passage_retrieval.stem_tokens(keywords):
-            if result[2].find(keyword) != -1:
-                positions.append(result[2].find(keyword))
+            keyword = keyword.lower()
+            if result[2].lower().find(keyword) != -1:
+                positions.append(result[2].lower().find(keyword))
 
         if (len(positions) == 0):
             continue
@@ -92,8 +93,9 @@ def ComputePassageFeatures(keyword_query, results):
 
         positions = []
         for keyword in passage_retrieval.stem_tokens(keywords):
-            if result[0].find(keyword) != -1:
-                positions.append(result[0].find(keyword))
+            keyword = keyword.lower()
+            if result[0].lower().find(keyword) != -1:
+                positions.append(result[0].lower().find(keyword))
 
         if (len(positions) == 0):
             continue

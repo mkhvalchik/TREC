@@ -9,8 +9,13 @@ import machine_learning
 from py_bing_search import PyBingSearch
 import sys
 import warnings
+import string
+import signal
 
 warnings.filterwarnings("ignore")
+
+def signal_handler(signum, frame):
+    raise Exception("Timed out!")
 
 # Get top 20 search result links for a given query using Bing
 def GetLinksForQueryBing(query):
@@ -21,7 +26,8 @@ def GetLinksForQueryBing(query):
         results = [result.url for result in result_list]
     except:
         return None
-    return results[:min(20, len(results))]
+    results = results[:min(20, len(results))]
+    return [r for r in results if r.find("youtube") == -1]
 
 # Get top 20 search result links for a given query using Google
 def GetLinksForQueryGoogle(query):
@@ -37,29 +43,36 @@ def GetLinksForQueryGoogle(query):
         results = [item['link'] for item in res['items']]
     except:
         return None
-    return results[:min(20, len(results))]
+    results = results[:min(20, len(results))]
+    return [r for r in results if r.find("youtube") == -1]
 
 parser, st, stop = common_lib.Init()
 
 title = sys.argv[1]
 body = sys.argv[1]
 
-keyword_query = common_lib.buildFullQuery(title, body, parser, stop)
+signal.signal(signal.SIGALRM, signal_handler)
+signal.alarm(51)   # 51 second
 
-links_bing = GetLinksForQueryBing(keyword_query)
-links_google = GetLinksForQueryGoogle(keyword_query)
+try:
+    keyword_query = common_lib.buildFullQuery(title, body, parser, stop)
 
-keyword_query =  passage_retrieval.RemoveSynonymsFromKeywords(keyword_query)
+    links_bing = GetLinksForQueryBing(keyword_query)
+    links_google = GetLinksForQueryGoogle(keyword_query)
 
-sum_score = 0
-len_score = 0
-results = []
-rank = 1
-for link in links_bing:
-    passage, score = passage_retrieval.GetTopPassageFromLinkWithML(keyword_query, link)
-    if passage:
-        results.append([link, link in links_google, passage, 0, rank])
-    rank += 1
+    keyword_query =  passage_retrieval.RemoveSynonymsFromKeywords(keyword_query)
+
+    sum_score = 0
+    len_score = 0
+    results = []
+    rank = 1
+    for link in links_bing:
+        passage, score = passage_retrieval.GetTopPassageFromLinkWithML(keyword_query, link)
+        if passage:
+            results.append([link, link in links_google, passage, 0, rank])
+        rank += 1
+except Exception, msg:
+    i = 1
 
 X, _ = machine_learning.ComputeAnswerFeatures(keyword_query, results)
 model = machine_learning.LoadModel("answers.model")
@@ -94,6 +107,8 @@ for s in scored_passages:
     if s[1] > max_bm25_score:
         max_bm25_score = s[1]
         top_passage = s[0]
+
+top_passage = filter(lambda x: x in string.printable, top_passage)
 
 unescape = HTMLParser().unescape
 print unescape(top_passage.encode('utf-8'))
