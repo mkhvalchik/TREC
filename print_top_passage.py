@@ -111,4 +111,4 @@ for s in scored_passages:
 top_passage = filter(lambda x: x in string.printable, top_passage)
 
 unescape = HTMLParser().unescape
-print unescape(top_passage.encode('utf-8'))
+print unescape(top_passage.replace("\n", " ").replace("  ", " ").replace("  ", " ").encode('utf-8'))
