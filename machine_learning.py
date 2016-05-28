@@ -1,6 +1,7 @@
 import passage_retrieval
 from sklearn import svm
 import pickle
+import math
 
 # Computes features for the answer selection ML model
 def ComputeAnswerFeatures(keyword_query, results):
@@ -76,7 +77,7 @@ def ComputeAnswerFeatures(keyword_query, results):
 def ComputePassageFeatures(keyword_query, results):
     top_results = results
     top_results.sort(key=lambda tup: tup[2], reverse=True)
-    top_results = top_results[:(len(top_results) / 5)]
+    top_results = top_results[:(len(top_results) / 3)]
     results.sort(key=lambda tup: tup[1], reverse=True)
     keywords = passage_retrieval.RemoveSynonymsFromKeywords(keyword_query).split(" AND ")
 
@@ -109,18 +110,21 @@ def ComputePassageFeatures(keyword_query, results):
             average_distance = float(s) / len(positions)
         else:
             average_distance = 1000
-        features.append(average_distance)
+        features.append(math.ceil(average_distance / 10))
 
         # Third feature - number of query terms in passage
         features.append(float(len(positions))/len(keywords))
 
         # Fourth feature - number of words in passage
-        features.append(len(result[0].split(" ")))
+        features.append(len(result[0].split(" ")) / 10)
 
         label = 0
         for top_result in top_results:
             if result[0] == top_result[0]:
               label = 1
+
+        if label == 1 and average_distance == 0.0:
+            continue
 
         X.append(features)
         Y.append(label)

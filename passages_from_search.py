@@ -31,17 +31,14 @@ def GetLinksForQueryBing(query):
 
 parser, st, stop = common_lib.Init()
 
-f = open("output_passages_big_bing.xml", "wb")
+f = open("output_passages_500_bing.xml", "wb")
 f.write("<data>\n")
-e = xml.etree.ElementTree.parse('big_sample.xml').getroot()
+e = xml.etree.ElementTree.parse('500_sample.xml').getroot()
 i = 1
 all_scores = 0
 top_scores = 0
 for ves in e.findall('vespaadd'):
     for doc in ves.findall('document'):
-        if i < 20:
-            i += 1
-            continue
         f.write("<doc number = \"" + str(i) + "\">\n")
         try:
             # adding links for keyword query

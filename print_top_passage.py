@@ -7,6 +7,7 @@ import common_lib
 import passage_retrieval
 import machine_learning
 from py_bing_search import PyBingSearch
+from py_bing_search import PyBingException
 import sys
 import warnings
 import string
@@ -19,30 +20,26 @@ def signal_handler(signum, frame):
 
 # Get top 20 search result links for a given query using Bing
 def GetLinksForQueryBing(query):
+    bing = PyBingSearch('3Bybyj2qcK/w5FXbBqBUjI9MajN51efC2uYldmzvvnY')
     try:
-        bing = PyBingSearch('3Bybyj2qcK/w5FXbBqBUjI9MajN51efC2uYldmzvvnY')
         result_list = bing.search_all(query, limit=20, format='json')
-
-        results = [result.url for result in result_list]
-    except:
-        return None
+    except PyBingException:
+        return []
+    results = [result.url for result in result_list]
     results = results[:min(20, len(results))]
     return [r for r in results if r.find("youtube") == -1]
 
 # Get top 20 search result links for a given query using Google
 def GetLinksForQueryGoogle(query):
-    try:
-        service = build("customsearch", "v1",
-              developerKey="AIzaSyDBh9qkTpuXSWbsjCfnCTQJFuFGKOYCElM")
+    service = build("customsearch", "v1",
+          developerKey="AIzaSyDBh9qkTpuXSWbsjCfnCTQJFuFGKOYCElM")
 
-        res = service.cse().list(
-            q=query,
-            cx='000504779742960611072:dpmv5fihhu8',
-          ).execute()
+    res = service.cse().list(
+        q=query,
+        cx='000504779742960611072:dpmv5fihhu8',
+      ).execute()
 
-        results = [item['link'] for item in res['items']]
-    except:
-        return None
+    results = [item['link'] for item in res['items']]
     results = results[:min(20, len(results))]
     return [r for r in results if r.find("youtube") == -1]
 
@@ -52,12 +49,13 @@ title = sys.argv[1]
 body = sys.argv[1]
 
 signal.signal(signal.SIGALRM, signal_handler)
-signal.alarm(51)   # 51 second
+signal.alarm(51)   # 51 seconds
 
 try:
     keyword_query = common_lib.buildFullQuery(title, body, parser, stop)
 
-    links_bing = GetLinksForQueryBing(keyword_query)
+    links_bing_yahoo = GetLinksForQueryBing("answers.yahoo.com " + keyword_query)[:2]
+    links_bing = links_bing_yahoo + GetLinksForQueryBing(keyword_query)
     links_google = GetLinksForQueryGoogle(keyword_query)
 
     keyword_query =  passage_retrieval.RemoveSynonymsFromKeywords(keyword_query)
@@ -71,7 +69,7 @@ try:
         if passage:
             results.append([link, link in links_google, passage, 0, rank])
         rank += 1
-except Exception, msg:
+except:
     i = 1
 
 X, _ = machine_learning.ComputeAnswerFeatures(keyword_query, results)

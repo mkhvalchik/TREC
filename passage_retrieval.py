@@ -5,6 +5,7 @@ import common_lib
 import re
 import nltk, string
 import machine_learning
+import socket
 from sklearn.feature_extraction.text import TfidfVectorizer
 from langdetect import detect
 
@@ -14,14 +15,30 @@ def GetTextFromLink(link):
         return None
     try:
         req = urllib2.Request(link, headers={ 'User-Agent': 'Mozilla/5.0' })
-        html = unicode(urllib2.urlopen(req, timeout=2.5).read(), 'utf-8')
+        html = urllib2.urlopen(req, timeout=2.5).read()
+    except urllib2.URLError:
+        return None
+    except socket.timeout:
+        return None
+    try:
+        html = unicode(html, 'utf-8')
     except:
         return None
+    if link.find("answers.yahoo") != -1:
+        pos = html.find('Best Answer')
+        if (pos != -1):
+            html = html[pos:]
+        else:
+            html = ""
     # print html
     h = html2text.HTML2Text()
     h.ignore_links = True
     h.ignore_emphasis = True
-    return unicode(h.handle(html))
+    try:
+        text = unicode(h.handle(html))
+    except:
+        return ""
+    return text
 
 # For a given text, returns allcominations of 3 nearby sentences
 def GetAllPassages(keywords, text):
@@ -55,6 +72,8 @@ def GetAllPassages(keywords, text):
         if (words.count('*') >= 10 or words.count('|') >= 10):
             continue
         if (words.find('.jpg') != -1 or words.find('.JPG') != -1):
+            continue
+        if words.find("---") != -1:
             continue
         if (len(words) < 40):
             continue

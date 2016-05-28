@@ -7,7 +7,7 @@ import passage_retrieval
 
 warnings.filterwarnings("ignore")
 
-e = xml.etree.ElementTree.parse('output_links_big_bing.xml').getroot()
+e = xml.etree.ElementTree.parse('output_links_bing_500.xml').getroot()
 
 X = []
 Y = []
@@ -35,6 +35,8 @@ for doc in e.findall('doc'):
             score = float(best_passage_per_link.find('score').text)
             results.append([link, in_intersection, best_passage_per_link.find('passage').text, score, rank])
         rank += 1
+    if (len(results) == 0):
+        continue
     X_1, Y_1 = machine_learning.ComputeAnswerFeatures(keyword_query, results)
     X.extend(X_1)
     Y.extend(Y_1)

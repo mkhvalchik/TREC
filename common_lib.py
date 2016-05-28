@@ -46,7 +46,7 @@ def buildFullQuery(subject, content, parser, stop, hyponyms=False, hypernyms=Fal
     query = query.replace("<br>", "")
     # Regular expression that takes everything in the parentheses and removes it
     query = re.sub(r'\([^)]*\)', '', query)
-    importantTags = ["JJ", "NNP", "NN", "VBN", "VB", "VBP", "NNS", "CD"]
+    importantTags = ["JJ", "NNP", "NN", "VBN", "VB", "VBP", "VBG", "NNS", "CD"]
     query = query.replace('!', '.')
     query = query.replace('?', '.')
     query = query.replace('/', ' ')
@@ -68,7 +68,7 @@ def buildFullQuery(subject, content, parser, stop, hyponyms=False, hypernyms=Fal
                 t = None
                 if tag == "JJ":
                     t = wn.ADJ
-                elif tag == "NNP" or tag == "NN":
+                elif tag == "NNP" or tag == "NN" or tag == "VBG":
                     t = wn.NOUN
                 elif tag == "VBN":
                     t = wn.VERB
